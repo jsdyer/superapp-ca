@@ -2,18 +2,20 @@
 declare(strict_types=1);
 require __DIR__.'/../app/bootstrap.php';
 require __DIR__.'/../app/community-routes.php';
+require __DIR__.'/../app/customization-routes.php';
 security_headers();
 $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';
 $method=$_SERVER['REQUEST_METHOD']??'GET';
 $isApi=str_starts_with($path,'/api/');
 try {
     if ((int)($_SERVER['CONTENT_LENGTH']??0)>2100000) fail(413,'That request is too large. The limit is 2 MB.');
+    guarded_route($path);
     if ($isApi) {
         $u=api_user(); rate_limit('api:'.$u['id'],180,60);
         if($path==='/api/me'&&$method==='GET')json_response(export_account($u)['profile']);
         if($path==='/api/entries'&&$method==='GET') {
             $offset=max(0,(int)($_GET['offset']??0));
-            json_response(['entries'=>rows('SELECT * FROM entries WHERE user_id=? ORDER BY id DESC LIMIT 100 OFFSET '.$offset,[$u['id']]),'offset'=>$offset,'limit'=>100]);
+            json_response(['entries'=>rows('SELECT * FROM entries WHERE user_id=? AND kind IN ('.active_kinds_sql().') ORDER BY id DESC LIMIT 100 OFFSET '.$offset,[$u['id']]),'offset'=>$offset,'limit'=>100]);
         }
         $id=null;
         if(preg_match('~^/api/entries/([1-9][0-9]*)$~D',$path,$m))$id=(int)$m[1];
@@ -33,7 +35,7 @@ try {
         if($path==='/join') {
             if(!cfg('registration_open'))fail(403,'Registration is closed for this instance.');
             rate_limit('register',5,3600);
-            $id=create_user($_POST);session_regenerate_id(true);$_SESSION['user_id']=$id;$_SESSION['auth_version']=1;$_SESSION['csrf']=bin2hex(random_bytes(32));flash('Welcome in. Your corner is ready.');redirect('/profile');
+            $id=create_user($_POST);session_regenerate_id(true);$_SESSION['user_id']=$id;$_SESSION['auth_version']=1;$_SESSION['csrf']=bin2hex(random_bytes(32));flash('Welcome in. Your corner is ready.');redirect('/welcome');
         }
         if($path==='/login') {
             rate_limit('login',15);
@@ -41,10 +43,11 @@ try {
             $u=one('SELECT * FROM users WHERE username=?',[$name]);
             $valid=password_verify($pw,$u['password_hash']??'$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.');
             if(!$valid||!$u||$u['suspended'])fail(422,'We could not sign you in with those details.');
-            session_regenerate_id(true);$_SESSION['user_id']=$u['id'];$_SESSION['auth_version']=$u['auth_version'];$_SESSION['csrf']=bin2hex(random_bytes(32));redirect('/workspace');
+            session_regenerate_id(true);$_SESSION['user_id']=$u['id'];$_SESSION['auth_version']=$u['auth_version'];$_SESSION['csrf']=bin2hex(random_bytes(32));redirect(member_landing($u));
         }
         if($path==='/logout'){$_SESSION=[];session_regenerate_id(true);redirect('/');}
         $u=require_user();protect_demo($u);rate_limit('write:'.$u['id'],120,60);
+        customization_post($path,$u);
         community_post($path,$u);
         switch($path) {
             case '/profile/save': save_profile($u,$_POST);flash('Your corner has a fresh coat of paint.');redirect('/profile');
@@ -78,7 +81,7 @@ try {
             case '/report':
                 rate_limit('reports:'.$u['id'],10,3600);$reported=input($_POST,'path',500);$reason=input($_POST,'reason',2000);
                 if(!preg_match('~^/(?:@[a-z][a-z0-9_-]{2,23}(?:/e/[a-z0-9-]+)?|projects/[1-9][0-9]*|rings/[1-9][0-9]*)$~D',$reported)||$reason==='')fail(422,'Provide a local profile, entry, project or ring path and a reason.');
-                query('INSERT INTO reports (user_id,path,reason,created_at) VALUES (?,?,?,?)',[$u['id'],$reported,$reason,now()]);flash('Your report is with the instance moderator.');redirect('/commons');
+                query('INSERT INTO reports (user_id,path,reason,created_at) VALUES (?,?,?,?)',[$u['id'],$reported,$reason,now()]);flash('Your report is with the instance moderator.');redirect(feature_enabled('commons')?'/commons':'/workspace');
             case '/admin/directory':
                 require_admin();$decision=input($_POST,'decision',20);if(!in_array($decision,['approved','rejected']))fail(422,'Invalid decision.');
                 query('UPDATE directory SET status=?,reviewed_at=? WHERE id=?',[$decision,now(),(int)($_POST['id']??0)]);flash('Directory review saved.');redirect('/admin');
@@ -89,9 +92,10 @@ try {
         }
     }
     if($method!=='GET')fail(405,'This method is not supported.');
+    customization_get($path);
     community_get($path);
     $pageNumber=max(1,min(100000,(int)($_GET['page']??1)));$offset=($pageNumber-1)*25;
-    $q=input($_GET,'q',150);$kind=input($_GET,'kind',20);if($kind!==''&&!isset(APPS[$kind]))fail(404,'App not found.');
+    $q=input($_GET,'q',150);$kind=input($_GET,'kind',20);if($kind!==''&&!isset(APPS[$kind]))fail(404,'App not found.');if($kind!=='')require_feature($kind);
     if($path==='/feed.xml'||preg_match('~^/@([a-z][a-z0-9_-]{2,23})/feed.xml$~D',$path,$m)) {
         $profile=isset($m[1])?profile_for($m[1]):null;$entries=public_entries('', '',0,$profile?(int)$profile['id']:null);
         header('Content-Type: application/rss+xml; charset=utf-8');
@@ -105,7 +109,7 @@ try {
     }
     if(preg_match('~^/@([a-z][a-z0-9_-]{2,23})(?:/(now|uses))?$~D',$path,$m)) {
         $p=profile_for($m[1]);$entries=public_entries('','',0,(int)$p['id']);
-        $messages=rows("SELECT g.*,u.username FROM guestbook g JOIN users u ON u.id=g.author_id WHERE g.owner_id=? AND g.status='approved' AND u.suspended=0 ORDER BY g.id DESC LIMIT 50",[$p['id']]);
+        $messages=feature_enabled('guestbook')?rows("SELECT g.*,u.username FROM guestbook g JOIN users u ON u.id=g.author_id WHERE g.owner_id=? AND g.status='approved' AND u.suspended=0 ORDER BY g.id DESC LIMIT 50",[$p['id']]):[];
         render('profile',['title'=>$p['display_name'],'profile'=>$p,'section'=>$m[2]??'home','entries'=>$entries,'messages'=>$messages,'noindex'=>!$p['listed']]);
     }
     switch($path) {
@@ -125,12 +129,12 @@ try {
             render('directory',compact('q','claim')+['title'=>'Buy Canadian','listings'=>rows('SELECT d.* FROM directory d JOIN users u ON u.id=d.user_id WHERE '.$where.' ORDER BY d.name LIMIT 100',$params)]);
         case '/directory/submit':require_user();render('directory-submit',['title'=>'Share a Canadian discovery']);
         case '/workspace':
-            $u=require_user();$where='user_id=?';$params=[$u['id']];
+            $u=require_user();$where='user_id=? AND kind IN ('.active_kinds_sql().')';$params=[$u['id']];
             if($kind!==''){$where.=' AND kind=?';$params[]=$kind;}if($q!==''){$where.=' AND (title LIKE ? OR body LIKE ? OR tags LIKE ?)';for($i=0;$i<3;$i++)$params[]='%'.$q.'%';}
             render('workspace',compact('kind','q','pageNumber')+['title'=>'My workspace','entries'=>rows('SELECT * FROM entries WHERE '.$where.' ORDER BY id DESC LIMIT 25 OFFSET '.$offset,$params)]);
         case '/compose':
-            $u=require_user();$entry=null;if(isset($_GET['id'])){$entry=one('SELECT * FROM entries WHERE id=? AND user_id=?',[(int)$_GET['id'],$u['id']]);if(!$entry)fail(404,'Entry not found.');}
-            render('compose',['title'=>'Make something','entry'=>$entry,'kind'=>$kind?:'post']);
+            $u=require_user();if(!active_apps())fail(404,'Writing apps are switched off on this instance.');$entry=null;if(isset($_GET['id'])){$entry=one('SELECT * FROM entries WHERE id=? AND user_id=?',[(int)$_GET['id'],$u['id']]);if(!$entry)fail(404,'Entry not found.');require_feature($entry['kind']);}
+            render('compose',['title'=>'Make something','entry'=>$entry,'kind'=>$kind?:array_key_first(active_apps())?:'post']);
         case '/profile':require_user();render('profile-edit',['title'=>'My page & /now']);
         case '/settings':require_user();render('settings',['title'=>'Settings & data']);
         case '/guestbook':$u=require_user();render('guestbook',['title'=>'My guestbook','messages'=>rows('SELECT g.*,u.username FROM guestbook g JOIN users u ON u.id=g.author_id WHERE g.owner_id=? ORDER BY g.id DESC LIMIT 100',[$u['id']])]);

@@ -44,7 +44,7 @@ function community_get(string $path): void {
     if($path==='/start'){
         $u=require_user();$edit=null;
         if(isset($_GET['edit'])){$edit=one('SELECT * FROM start_links WHERE id=? AND user_id=?',[(int)$_GET['edit'],$u['id']]);if(!$edit)fail(404,'Shortcut not found.');}
-        render('start',['title'=>'My start page','links'=>rows('SELECT * FROM start_links WHERE user_id=? ORDER BY group_name,position,id',[$u['id']]),'note'=>one('SELECT body FROM start_notes WHERE user_id=?',[$u['id']])['body']??'','edit'=>$edit,'projects'=>rows('SELECT * FROM projects WHERE user_id=? ORDER BY updated_at DESC,id DESC LIMIT 5',[$u['id']]),'recent'=>rows('SELECT * FROM entries WHERE user_id=? ORDER BY id DESC LIMIT 5',[$u['id']]),'noindex'=>true]);
+        render('start',['title'=>'My start page','links'=>rows('SELECT * FROM start_links WHERE user_id=? ORDER BY group_name,position,id',[$u['id']]),'note'=>one('SELECT body FROM start_notes WHERE user_id=?',[$u['id']])['body']??'','edit'=>$edit,'projects'=>rows('SELECT * FROM projects WHERE user_id=? ORDER BY updated_at DESC,id DESC LIMIT 5',[$u['id']]),'recent'=>rows('SELECT * FROM entries WHERE user_id=? AND kind IN ('.active_kinds_sql().') ORDER BY id DESC LIMIT 5',[$u['id']]),'noindex'=>true]);
     }
     if($path==='/workbench'){
         $u=require_user();render('workbench',['title'=>'My project workbench','projects'=>rows('SELECT * FROM projects WHERE user_id=? ORDER BY updated_at DESC,id DESC',[$u['id']]),'noindex'=>true]);

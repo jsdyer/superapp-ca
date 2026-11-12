@@ -22,3 +22,11 @@ Repeat tests on the deployment target and inspect the CI run associated with the
 - Browser review: public project discovery and a populated project detail rendered correctly; webring discovery and the honest empty funding page rendered correctly. Authenticated flows were checked by HTTP integration tests, not an authenticated browser session. A full mobile-device and accessibility audit has not been performed.
 - GitHub Actions now runs both domain suites and both HTTP suites on SQLite and MariaDB. Consult the run attached to the deployed commit for its exact result.
 - No DNS, live hosting, payment provider or production database was changed. The new demo project is explicitly fictional; the funding page has no seeded financial totals.
+
+## Customization update — 2026-11-12
+
+- SQLite: original domain **52**, community domain **67**, customization domain **72** checks passed.
+- HTTP: original **57**, community **76**, customization **88** checks passed; **412 checks** across the six suites.
+- New coverage includes admin authorization and stale revisions, hard-off overrides, disabled direct routes and entry kinds, API/privacy filtering, retained exports, core-only operation, preferences, private task ownership, escaped input and private prompt drafts.
+- Browser review: Midnight theme preview rendered correctly; Focus room started, counted down, paused and reset successfully. Public Terminal preview was checked. Authenticated flows use HTTP integration tests; no full authenticated browser, mobile-device or screen-reader audit is claimed.
+- CI runs all six suites against both SQLite and MariaDB. Inspect the run associated with the exact deployed commit for its result. No live hosting, DNS, payments or production database was changed.

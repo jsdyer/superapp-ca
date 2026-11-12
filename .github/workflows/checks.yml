@@ -39,6 +39,7 @@ jobs:
         run: |
           php tests/domain.php
           php tests/community.php
+          php tests/customization.php
       - name: HTTP checks
         env:
           SUPERAPP_DSN: ${{ matrix.database == 'mariadb' && 'mysql:host=127.0.0.1;dbname=superapp_test;charset=utf8mb4' || 'sqlite:/tmp/superapp-http.sqlite' }}
@@ -56,6 +57,7 @@ jobs:
           for attempt in $(seq 1 30); do curl --silent --fail http://127.0.0.1:8080/ > /dev/null && break || sleep 1; done
           python3 tests/http_smoke.py http://127.0.0.1:8080
           python3 tests/http_community.py http://127.0.0.1:8080
+          python3 tests/http_customization.py http://127.0.0.1:8080
       - name: Show server log on failure
         if: failure()
         run: cat /tmp/superapp-http.log || true

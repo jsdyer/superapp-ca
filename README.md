@@ -12,7 +12,12 @@ Original PHP application and design, inspired by the small-service bundle of [om
 
 | Tool | Implemented behaviour |
 | --- | --- |
-| Your corner | Public profile, `/now`, `/uses`, 3 themes, discovery opt-out, `rel=me` website link |
+| Feature controls | Admin switches for 23 optional services; disable and re-enable without erasing member data |
+| Make it yours | Starter kits, live theme previews, heading fonts, spacing, profile banners, avatar marks, favourites and start-page widgets |
+| Pocket list | Private tasks with edit, complete, reopen and remove |
+| Little ideas | 12 rotating maker/IndieWeb prompts; save a private draft |
+| Focus room | Local-only timer with pause/resume/reset; no streaks or tracking |
+| Your corner | Public profile, `/now`, `/uses`, 7 themes, discovery opt-out, `rel=me` website link |
 | Signal | Status posts, 1,000-byte limit, chronological commons |
 | Notebook | Plain-text blog posts with stable URLs, tags, search and RSS |
 | Link shelf | Annotated bookmarks, search, public/private visibility, Netscape HTML export |
@@ -77,13 +82,17 @@ Passwords are entered through stdin without echo on a Unix terminal. Never put a
 ```bash
 php tests/domain.php
 php tests/community.php
+php tests/customization.php
 python3 tests/http_smoke.py http://127.0.0.1:8080
 python3 tests/http_community.py http://127.0.0.1:8080
+python3 tests/http_customization.py http://127.0.0.1:8080
 ```
 
 The domain suite uses isolated in-memory SQLite unless `SUPERAPP_TEST_DSN` is set. For disposable MariaDB, set `SUPERAPP_TEST_DSN`, `SUPERAPP_TEST_DB_USER`, and `SUPERAPP_TEST_DB_PASS`. Never point tests at production. The HTTP suite needs a disposable running instance with registration enabled; it creates two unique accounts and deletes them after a successful run.
 
 The community HTTP suite also needs the PHP CLI and the same `SUPERAPP_*` database configuration as the server. It creates temporary member/admin fixtures through the CLI, exercises moderation, then removes its records. Use a disposable database only. Set `SUPERAPP_TEST_PHP` if PHP is not on PATH.
+
+Read [the customization guide](docs/CUSTOMIZATION.md) for operator switches, member themes, starter kits and the new small apps.
 
 Read [the community tools guide](docs/COMMUNITY.md) for visibility, moderation, funding and limits.
 
@@ -94,7 +103,7 @@ See [validation notes](docs/VALIDATION.md), [API documentation](docs/API.md), [s
 ```text
 app/         configuration bootstrap, PDO queries, domain rules, views, optional demo seed
 public/      only web-served directory: front controller, CSS, JS and favicon
-database/    base and additive community schemas, used by the migration command
+database/    base, community and customization schemas, used by the migration command
 bin/         account and maintenance CLI
 config/      example settings; local.php is ignored
 deploy/      Apache and PHP configuration examples

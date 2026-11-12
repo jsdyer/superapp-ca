@@ -37,20 +37,23 @@ function create_user(array $data, string $role='member'): int {
     $password=input($data,'password',72); validate_password($password);
     if (one('SELECT id FROM users WHERE username = ? OR email = ?',[$name,$email])) fail(422,'That username or email is unavailable.');
     query('INSERT INTO users (username,email,password_hash,display_name,bio,now_text,uses_text,role,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)',[$name,$email,password_hash($password,PASSWORD_DEFAULT),$name,'','','',$role,now(),now()]);
-    return (int)db()->lastInsertId();
+    $id=(int)db()->lastInsertId();
+    query('UPDATE users SET theme=? WHERE id=?',[instance_options()['theme'],$id]);
+    return $id;
 }
 function save_profile(array $user,array $data): void {
     protect_demo($user);
     $name=input($data,'display_name',80); if ($name==='') fail(422,'Your display name needs a little something.');
-    $theme=input($data,'theme',20); if (!in_array($theme,['cedar','maple','terminal'])) fail(422,'Choose a theme from the list.');
-    query('UPDATE users SET display_name=?,bio=?,location=?,website=?,now_text=?,uses_text=?,theme=?,listed=?,updated_at=? WHERE id=?',[$name,input($data,'bio',3000),input($data,'location',100),web_url(input($data,'website',1000)),input($data,'now_text',15000),input($data,'uses_text',15000),$theme,isset($data['listed'])?1:0,now(),$user['id']]);
+    $theme=input($data,'theme',20); if (!in_array($theme,array_keys(THEMES))) fail(422,'Choose a theme from the list.');
+    query('UPDATE users SET display_name=?,bio=?,location=?,website=?,now_text=?,uses_text=?,theme=?,listed=?,updated_at=? WHERE id=?',[$name,input($data,'bio',3000),input($data,'location',100),web_url(input($data,'website',1000)),feature_enabled('garden')?input($data,'now_text',15000):$user['now_text'],feature_enabled('uses')?input($data,'uses_text',15000):$user['uses_text'],$theme,isset($data['listed'])?1:0,now(),$user['id']]);
 }
 function save_entry(array $user,array $data,?int $id=null): int {
     protect_demo($user);
     $old=$id?one('SELECT * FROM entries WHERE id=? AND user_id=?',[$id,$user['id']]):null;
     if ($id && !$old) fail(404,'That entry is not in your workspace.');
+    if($old)require_feature($old['kind']);
     $data=array_replace($old??[], $data);
-    $kind=input($data,'kind',20); if (!isset(APPS[$kind])) fail(422,'Choose an app from the list.');
+    $kind=input($data,'kind',20); if (!isset(APPS[$kind])) fail(422,'Choose an app from the list.'); require_feature($kind);
     $title=input($data,'title',160); if ($title==='') fail(422,'Give this entry a title.');
     $body=input($data,'body',$kind==='status'?1000:60000);
     $slug=input($data,'slug',80);
@@ -66,10 +69,10 @@ function save_entry(array $user,array $data,?int $id=null): int {
     else { query('INSERT INTO entries (user_id,kind,slug,title,body,target_url,tags,visibility,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)',[$user['id'],$kind,$slug,$title,$body,$target,$tags,$visibility,now(),now()]); $id=(int)db()->lastInsertId(); }
     return $id;
 }
-function delete_entry(array $user,int $id): void { protect_demo($user); if (!query('DELETE FROM entries WHERE id=? AND user_id=?',[$id,$user['id']])->rowCount()) fail(404,'Entry not found.'); }
-function visible_entry(array $entry,?array $viewer): bool { return $entry['visibility']!=='private' || ($viewer && (int)$viewer['id']===(int)$entry['user_id']); }
+function delete_entry(array $user,int $id): void { protect_demo($user); $old=one('SELECT kind FROM entries WHERE id=? AND user_id=?',[$id,$user['id']]);if($old)require_feature($old['kind']); if (!query('DELETE FROM entries WHERE id=? AND user_id=?',[$id,$user['id']])->rowCount()) fail(404,'Entry not found.'); }
+function visible_entry(array $entry,?array $viewer): bool { return (!isset($entry['kind'])||feature_enabled($entry['kind'])) && ($entry['visibility']!=='private' || ($viewer && (int)$viewer['id']===(int)$entry['user_id'])); }
 function public_entries(string $kind='',string $search='',int $offset=0,?int $userId=null): array {
-    $where="e.visibility='public' AND u.suspended=0"; $p=[];
+    $where="e.visibility='public' AND u.suspended=0 AND e.kind IN (".active_kinds_sql().")"; $p=[];
     if ($userId===null) $where.=' AND u.listed=1'; else {$where.=' AND e.user_id=?';$p[]=$userId;}
     if ($kind!=='') { $where.=' AND e.kind=?';$p[]=$kind; }
     if ($search!=='') { $where.=' AND (e.title LIKE ? OR e.body LIKE ? OR e.tags LIKE ?)'; for($i=0;$i<3;$i++)$p[]='%'.$search.'%'; }
@@ -77,7 +80,7 @@ function public_entries(string $kind='',string $search='',int $offset=0,?int $us
 }
 function profile_for(string $name): array { return one('SELECT * FROM users WHERE username=? AND suspended=0',[$name]) ?? throw new HttpError('This corner of the web could not be found.',404); }
 function export_account(array $user): array {
-    return community_export($user) + ['format'=>'superapp-export','version'=>1,'exported_at'=>now(),'profile'=>array_intersect_key($user,array_flip(['username','display_name','bio','location','website','now_text','uses_text','theme','listed','created_at','updated_at'])), 'entries'=>rows('SELECT kind,slug,title,body,target_url,tags,visibility,created_at,updated_at FROM entries WHERE user_id=? ORDER BY id',[$user['id']]),'directory_submissions'=>rows('SELECT name,category,province,website,claim,evidence_url,notes,status,reviewed_at,created_at FROM directory WHERE user_id=?',[$user['id']]),'guestbook'=>rows('SELECT g.body,g.status,g.created_at,u.username AS author FROM guestbook g JOIN users u ON u.id=g.author_id WHERE g.owner_id=?',[$user['id']])];
+    return ['preferences'=>preferences($user),'pocket_tasks'=>rows('SELECT title,completed,created_at FROM pocket_tasks WHERE user_id=? ORDER BY id',[$user['id']])] + community_export($user) + ['format'=>'superapp-export','version'=>1,'exported_at'=>now(),'profile'=>array_intersect_key($user,array_flip(['username','display_name','bio','location','website','now_text','uses_text','theme','listed','created_at','updated_at'])), 'entries'=>rows('SELECT kind,slug,title,body,target_url,tags,visibility,created_at,updated_at FROM entries WHERE user_id=? ORDER BY id',[$user['id']]),'directory_submissions'=>rows('SELECT name,category,province,website,claim,evidence_url,notes,status,reviewed_at,created_at FROM directory WHERE user_id=?',[$user['id']]),'guestbook'=>rows('SELECT g.body,g.status,g.created_at,u.username AS author FROM guestbook g JOIN users u ON u.id=g.author_id WHERE g.owner_id=?',[$user['id']])];
 }
 function import_entries(array $user,array $data): int {
     if (($data['format']??'')!=='superapp-export' || ($data['version']??0)!==1 || !is_array($data['entries']??null) || count($data['entries'])>500) fail(422,'Use a Superapp v1 export containing at most 500 entries. Split larger exports into batches.');

@@ -31,7 +31,7 @@ anon=Client();a=Client();b=Client()
 suffix=secrets.token_hex(4);an='qa'+suffix+'a';bn='qa'+suffix+'b';password=secrets.token_hex(16)
 for c,name in [(a,an),(b,bn)]:
     status,html,_=c.post('/join',dict(username=name,email=name+'@example.invalid',password=password),'/join')
-    check(status==200 and 'Let it feel like you' in html,'registration opens profile editor')
+    check(status==200 and 'Make this corner yours' in html,'registration opens optional welcome setup')
 status,_,_=anon.request('/workspace');check(status==401,'workspace requires authentication')
 status,_,_=a.request('/entry/save',dict(kind='post',title='No CSRF'));check(status==403,'missing CSRF denied')
 status,_,_=a.post('/profile/save',dict(display_name='Test human',bio='<script>alert(1)</script>',website='',location='',now_text='learning slowly',uses_text='Linux',theme='cedar',listed='1'),'/profile');check(status==200,'profile saves')

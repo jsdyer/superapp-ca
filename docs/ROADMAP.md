@@ -20,6 +20,10 @@ The initial inspiration is omg.lol’s collection of small personal-web services
 
 Private start pages, project workbenches, owner-approved webrings, manual monthly CAD funding reports, and separately sourced directory evidence with a correction queue. Read [the feature guide](COMMUNITY.md).
 
+## Customization now shipped
+
+Operator switches for 23 optional services, seven themes, member favourites and start widgets, starter kits, a private pocket list, rotating idea cards and a local-only focus timer. See [Customization](CUSTOMIZATION.md).
+
 ## Next: make a good pilot dependable
 
 1. Operator onboarding, email verification, verified reset links, MFA/passkeys, scoped expiring API keys, audit logs, and more granular quotas. Revisit abuse handling with the actual pilot workload.

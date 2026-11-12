@@ -5,6 +5,8 @@ return [
     'dsn' => 'mysql:host=127.0.0.1;dbname=superapp;charset=utf8mb4',
     'db_user' => 'superapp',
     'db_pass' => '',
+    // Optional hard-off list; overrides the admin dashboard, e.g. api,rings.
+    'disabled_features' => '',
     'registration_open' => false,
     'session_secure' => true,
     'demo' => false,

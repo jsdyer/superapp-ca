@@ -45,7 +45,7 @@ To accept voluntary support, configure an HTTPS hosted payment page offering don
 - Restore into a new staging database and verify account login, private records, the directory and exports before changing production. User JSON export is not a full database backup: moderation state and credentials are deliberately omitted, and import restores entries only.
 - Publish a retention period for database backups and access logs. Deleting an account removes live rows but cannot erase already-copied backups until rotation. Rotate server logs and keep their access restricted.
 - Use `php bin/console.php reset-password HANDLE` for manually verified recovery. It revokes all sessions and API tokens. Verify the requester through an established channel; email verification and self-service reset are not implemented.
-- Keep code, PHP, Apache, MariaDB and container bases patched. The migration command creates missing base and community tables; it is not a general schema upgrade framework. Future releases need explicit incremental migrations and backup instructions.
+- Keep code, PHP, Apache, MariaDB and container bases patched. The migration command creates missing base, community and customization tables; it is not a general schema upgrade framework. Future releases need explicit incremental migrations and backup instructions.
 
 ## Before public registration
 
@@ -57,9 +57,9 @@ Current application limits: 10,000 entries per member, 60,000 bytes per full-tex
 ## Upgrading from the first Superapp release
 
 1. Close registration and put the instance behind a maintenance page while upgrading. Take a database backup and retain the previous code release.
-2. Pull the new code, including `database/community.sql`.
+2. Pull the new code, including `database/community.sql` and `database/customization.sql`.
 3. From the repository root, with your normal application database configuration, run `php bin/console.php migrate`. This adds the community tables without modifying or deleting existing rows. It can be rerun safely on SQLite and MariaDB.
-4. Verify sign-in, `/start`, `/workbench`, `/rings`, `/funding`, the directory, and an account export. Existing users start with empty workspaces for the new tools. Reopen the instance after verification.
+4. Verify sign-in, `/admin/features`, `/customize`, `/pocket`, `/start`, `/workbench`, `/rings`, `/funding`, the directory, and an account export. Existing users start with empty workspaces for the new tools. Reopen the instance after verification.
 5. For rollback, restore the previous code and retain the additive tables; it ignores them. A database restore is only necessary if you need to revert newly entered data. Back up first to avoid losing member work.
 
 New limits: 100 shortcuts and 100 projects per member; 500 updates per project; 10 owned webrings per member; 500 membership requests/members per ring. Projects/rings discovery and ring memberships are bounded lists, not full pagination. Directory evidence currently adds per-listing queries; tune indexes/batch loading before growing beyond the pilot. Quotas are application checks, not concurrency-tested hard resource ceilings.
@@ -67,3 +67,7 @@ New limits: 100 shortcuts and 100 projects per member; 500 updates per project; 
 Financial reporting is available at `/funding`. Administrators enter aggregate monthly CAD figures manually; no webhook or payment reconciliation is implied. Keep donor names, receipt details and payment identifiers out of the public notes. There is no immutable revision log. Preserve actual accounting records outside the app.
 
 Exports include the new member records. The importer remains entry-only; do not use an account JSON export as your sole backup. See [Community tools](COMMUNITY.md) for privacy and deletion rules.
+
+## Customization upgrade
+
+Back up the database and deploy the new code during maintenance, then run `php bin/console.php migrate` before serving requests. The additive `database/customization.sql` creates instance settings, member preferences and private pocket tasks; existing content is retained. All 23 optional features start enabled. Sign in as an administrator and open `/admin/features` to choose your launch scope, default theme and welcome message. See [Customization](CUSTOMIZATION.md) for configuration precedence, safe core routes, and member controls. Existing members keep their theme; new members receive the instance default and an optional welcome flow. Pocket lists are limited to 200 tasks per member.
