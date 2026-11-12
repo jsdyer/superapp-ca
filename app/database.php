@@ -11,13 +11,13 @@ function query(string $sql, array $params=[]): PDOStatement { $stmt=db()->prepar
 function one(string $sql, array $params=[]): ?array { return query($sql,$params)->fetch() ?: null; }
 function rows(string $sql, array $params=[]): array { return query($sql,$params)->fetchAll(); }
 function migrate(): void {
-    $sql=file_get_contents(ROOT . '/database/schema.sql');
+    $sql=file_get_contents(ROOT . '/database/schema.sql')."\n".file_get_contents(ROOT . '/database/community.sql');
     if (db()->getAttribute(PDO::ATTR_DRIVER_NAME)==='sqlite') {
         $sql=str_replace('BIGINT PRIMARY KEY AUTO_INCREMENT', 'INTEGER PRIMARY KEY AUTOINCREMENT', $sql);
         $sql=str_replace(' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci', '', $sql);
     }
     foreach (explode(';', $sql) as $part) if (trim($part)) db()->exec($part);
-    foreach(['entries_discovery'=>'entries (visibility, kind, created_at)', 'entries_owner'=>'entries (user_id, kind, id)', 'directory_review'=>'directory (status, id)', 'guestbook_owner'=>'guestbook (owner_id, status, id)', 'limits_expiry'=>'rate_limits (expires_at)'] as $name=>$definition) {
+    foreach(['entries_discovery'=>'entries (visibility, kind, created_at)', 'entries_owner'=>'entries (user_id, kind, id)', 'directory_review'=>'directory (status, id)', 'guestbook_owner'=>'guestbook (owner_id, status, id)', 'limits_expiry'=>'rate_limits (expires_at)', 'projects_owner'=>'projects (user_id, updated_at)', 'projects_public'=>'projects (visibility, updated_at)', 'project_updates_project'=>'project_updates (project_id, id)', 'start_links_owner'=>'start_links (user_id, group_name, position)', 'rings_owner'=>'rings (user_id, id)', 'ring_members_user'=>'ring_members (user_id, ring_id)', 'ring_members_public'=>'ring_members (ring_id, status, id)', 'corrections_review'=>'directory_corrections (status, id)'] as $name=>$definition) {
         try { db()->exec('CREATE INDEX '.$name.' ON '.$definition); }
         catch(PDOException $e) {
             $duplicate=db()->getAttribute(PDO::ATTR_DRIVER_NAME)==='mysql' ? (int)($e->errorInfo[1]??0)===1061 : str_contains($e->getMessage(),'already exists');

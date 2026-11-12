@@ -26,4 +26,16 @@ function seed_demo(): void {
         ['Canadian Web Hosting','Web hosting','Canada-wide','https://canadianwebhosting.com/','Canadian-owned','https://canadianwebhosting.com/','The provider describes itself as 100% Canadian owned and operated. Check current ownership and the location of your specific hosting plan.'],
     ];
     foreach($listings as $l)query('INSERT INTO directory (user_id,name,category,province,website,claim,evidence_url,notes,status,reviewed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',[$id,...$l,'approved','2026-11-12T00:00:00Z',now()]);
+    seed_community_demo($u);
+}
+
+function seed_community_demo(array $u): void {
+    if(!cfg('demo'))fail(422,'Demo seeding is disabled.');
+    if(one('SELECT id FROM projects WHERE user_id=?',[$u['id']]))return;
+    $p=save_project($u,['title'=>'A quieter little home server','summary'=>"A fictional example build: give a retired small-form-factor PC a second life with Linux, local DNS, and documented backups.\n\nRepair before replace. Keep the runbook next to the machine. Example costs below are illustrative, not a real purchase record.",'state'=>'building','visibility'=>'public']);
+    save_project_update($u,$p,['kind'=>'log','title'=>'Start with what is on the shelf','body'=>'Inventory the hardware. Check the fans. Write down the restore procedure before trusting the first backup.']);
+    save_project_update($u,$p,['kind'=>'milestone','title'=>'Boot Linux and check the disks','completed'=>'1']);
+    save_project_update($u,$p,['kind'=>'milestone','title'=>'Test a restore onto a spare drive']);
+    save_project_update($u,$p,['kind'=>'part','title'=>'Illustrative second-hand memory upgrade','body'=>'Example only. Reusing the case, board and storage.','cost'=>'20.00']);
+    save_ring($u,['name'=>'The little Linux neighbourhood','description'=>'A fictional example circle for people who run their own servers, write down what they learn, and keep old hardware useful. Submit a personal profile or a website you own. A live owner would review requests; this demo owner is read-only.']);
 }

@@ -77,7 +77,7 @@ function public_entries(string $kind='',string $search='',int $offset=0,?int $us
 }
 function profile_for(string $name): array { return one('SELECT * FROM users WHERE username=? AND suspended=0',[$name]) ?? throw new HttpError('This corner of the web could not be found.',404); }
 function export_account(array $user): array {
-    return ['format'=>'superapp-export','version'=>1,'exported_at'=>now(),'profile'=>array_intersect_key($user,array_flip(['username','display_name','bio','location','website','now_text','uses_text','theme','listed','created_at','updated_at'])), 'entries'=>rows('SELECT kind,slug,title,body,target_url,tags,visibility,created_at,updated_at FROM entries WHERE user_id=? ORDER BY id',[$user['id']]),'directory_submissions'=>rows('SELECT name,category,province,website,claim,evidence_url,notes,status,reviewed_at,created_at FROM directory WHERE user_id=?',[$user['id']]),'guestbook'=>rows('SELECT g.body,g.status,g.created_at,u.username AS author FROM guestbook g JOIN users u ON u.id=g.author_id WHERE g.owner_id=?',[$user['id']])];
+    return community_export($user) + ['format'=>'superapp-export','version'=>1,'exported_at'=>now(),'profile'=>array_intersect_key($user,array_flip(['username','display_name','bio','location','website','now_text','uses_text','theme','listed','created_at','updated_at'])), 'entries'=>rows('SELECT kind,slug,title,body,target_url,tags,visibility,created_at,updated_at FROM entries WHERE user_id=? ORDER BY id',[$user['id']]),'directory_submissions'=>rows('SELECT name,category,province,website,claim,evidence_url,notes,status,reviewed_at,created_at FROM directory WHERE user_id=?',[$user['id']]),'guestbook'=>rows('SELECT g.body,g.status,g.created_at,u.username AS author FROM guestbook g JOIN users u ON u.id=g.author_id WHERE g.owner_id=?',[$user['id']])];
 }
 function import_entries(array $user,array $data): int {
     if (($data['format']??'')!=='superapp-export' || ($data['version']??0)!==1 || !is_array($data['entries']??null) || count($data['entries'])>500) fail(422,'Use a Superapp v1 export containing at most 500 entries. Split larger exports into batches.');
@@ -90,7 +90,15 @@ function submit_directory(array $user,array $data): void {
     protect_demo($user);
     $name=input($data,'name',120);if($name==='')fail(422,'Enter the business or project name.');
     $claim=input($data,'claim',40); if(!in_array($claim,['Canadian-owned','Made in Canada','Canadian-hosted','Community organization']))fail(422,'Choose the type of Canadian connection.');
-    query('INSERT INTO directory (user_id,name,category,province,website,claim,evidence_url,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)',[$user['id'],$name,input($data,'category',30),input($data,'province',30),web_url(input($data,'website',2000),true),$claim,web_url(input($data,'evidence_url',2000),true),input($data,'notes',3000),now()]);
+    $facts=directory_evidence($data);$alternatives=input($data,'alternatives',250);
+    // Validate everything before starting a transaction; evidence and listing publish together.
+    $website=web_url(input($data,'website',2000),true);$source=web_url(input($data,'evidence_url',2000),true);
+    $category=input($data,'category',30);$province=input($data,'province',30);$notes=input($data,'notes',3000);
+    db()->beginTransaction();
+    try {
+        query('INSERT INTO directory (user_id,name,category,province,website,claim,evidence_url,notes,created_at) VALUES (?,?,?,?,?,?,?,?,?)',[$user['id'],$name,$category,$province,$website,$claim,$source,$notes,now()]);
+        store_directory_evidence((int)db()->lastInsertId(),$alternatives,$facts);db()->commit();
+    } catch(Throwable $e){db()->rollBack();throw $e;}
 }
 function api_user(): array {
     $auth=$_SERVER['HTTP_AUTHORIZATION']??'';

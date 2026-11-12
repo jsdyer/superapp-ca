@@ -45,10 +45,25 @@ To accept voluntary support, configure an HTTPS hosted payment page offering don
 - Restore into a new staging database and verify account login, private records, the directory and exports before changing production. User JSON export is not a full database backup: moderation state and credentials are deliberately omitted, and import restores entries only.
 - Publish a retention period for database backups and access logs. Deleting an account removes live rows but cannot erase already-copied backups until rotation. Rotate server logs and keep their access restricted.
 - Use `php bin/console.php reset-password HANDLE` for manually verified recovery. It revokes all sessions and API tokens. Verify the requester through an established channel; email verification and self-service reset are not implemented.
-- Keep code, PHP, Apache, MariaDB and container bases patched. The migration command creates missing initial tables; it is not a general schema upgrade framework. Future releases need explicit incremental migrations and backup instructions.
+- Keep code, PHP, Apache, MariaDB and container bases patched. The migration command creates missing base and community tables; it is not a general schema upgrade framework. Future releases need explicit incremental migrations and backup instructions.
 
 ## Before public registration
 
 Publish actual operator contact, service-specific terms, hosting/backup details and retention periods. Exercise account recovery, backups, restoration, directory moderation and abuse reports. Add front-proxy request limits and a trusted proxy configuration suited to your network. PHP only uses `REMOTE_ADDR` for rate limits and does not trust arbitrary forwarding headers. If you use a reverse proxy, configure Apache’s trusted `mod_remoteip` boundary explicitly; otherwise the shared proxy IP can rate-limit all members together.
 
 Current application limits: 10,000 entries per member, 60,000 bytes per full-text entry, 1,000 bytes per status, 2 MB per request/import and 500 imported entries per batch. Garden and directory views show at most 100 records; commons and workspace paginate by 25. This first release is designed for a small community pilot. Add bounded pagination to the remaining moderation/directory/profile views, quotas for all shared resources, anti-spam operations and email verification before scaling up.
+
+
+## Upgrading from the first Superapp release
+
+1. Close registration and put the instance behind a maintenance page while upgrading. Take a database backup and retain the previous code release.
+2. Pull the new code, including `database/community.sql`.
+3. From the repository root, with your normal application database configuration, run `php bin/console.php migrate`. This adds the community tables without modifying or deleting existing rows. It can be rerun safely on SQLite and MariaDB.
+4. Verify sign-in, `/start`, `/workbench`, `/rings`, `/funding`, the directory, and an account export. Existing users start with empty workspaces for the new tools. Reopen the instance after verification.
+5. For rollback, restore the previous code and retain the additive tables; it ignores them. A database restore is only necessary if you need to revert newly entered data. Back up first to avoid losing member work.
+
+New limits: 100 shortcuts and 100 projects per member; 500 updates per project; 10 owned webrings per member; 500 membership requests/members per ring. Projects/rings discovery and ring memberships are bounded lists, not full pagination. Directory evidence currently adds per-listing queries; tune indexes/batch loading before growing beyond the pilot. Quotas are application checks, not concurrency-tested hard resource ceilings.
+
+Financial reporting is available at `/funding`. Administrators enter aggregate monthly CAD figures manually; no webhook or payment reconciliation is implied. Keep donor names, receipt details and payment identifiers out of the public notes. There is no immutable revision log. Preserve actual accounting records outside the app.
+
+Exports include the new member records. The importer remains entry-only; do not use an account JSON export as your sole backup. See [Community tools](COMMUNITY.md) for privacy and deletion rules.

@@ -16,11 +16,15 @@ The initial inspiration is omg.lol’s collection of small personal-web services
 | Portability | RSS, JSON exports/imports, bookmark export, no CDN or vendor backend |
 | Evidence over flag badges | Sources and review dates; listings explicitly are not certifications |
 
+## Community tools now shipped
+
+Private start pages, project workbenches, owner-approved webrings, manual monthly CAD funding reports, and separately sourced directory evidence with a correction queue. Read [the feature guide](COMMUNITY.md).
+
 ## Next: make a good pilot dependable
 
 1. Operator onboarding, email verification, verified reset links, MFA/passkeys, scoped expiring API keys, audit logs, and more granular quotas. Revisit abuse handling with the actual pilot workload.
 2. Cursor pagination for garden, directory, public profiles and moderation; indexes informed by real queries; deployment-time migration versioning; concurrency/load tests.
-3. Directory correction requests, source re-review reminders, change history, province/category facets, and product-level manufacturing notes. Add evidence standards before claiming verification.
+3. Build on the shipped sourced corrections and separate evidence fields with source re-review reminders, immutable change history, and province/category facets. Add evidence standards before claiming verification.
 4. Donor-chosen CAD checkout integration if desired. Keep hosted payment details outside the app, verify signed webhooks, and only publish funding totals backed by settled transaction records. Donations must never alter access or rankings.
 5. Optional French UI and bilingual community copy. Proper translation catalogues and human review, not a decorative language switch.
 
@@ -28,11 +32,11 @@ The initial inspiration is omg.lol’s collection of small personal-web services
 
 - Webmentions with SSRF protections, moderation, and rate limits; IndieAuth/Micropub; OPML and bookmark import. Current v1 offers RSS and rel=me, not those protocols.
 - Member-owned custom domains with explicit DNS verification and certificate automation. Currently everyone uses `/@handle`; no subdomain or DNS management is implemented.
-- A webring and small-site discovery shelf; no gamified leaderboards.
+- Build on the shipped webrings with domain ownership verification, ownership transfer and pagination; no gamified leaderboards.
 - Images/photo essays after a safe media pipeline: format inspection, re-encoding, metadata removal, quotas, storage separation, backup and deletion.
 - Archive capture workers using established WARC tooling, on a separately isolated queue with strict URL/network controls. Current Time capsule is a catalogue only.
 - Optional external Mastodon cross-posting/federation, not a pretend social server.
-- A transparent, real expense ledger once the operator has actual costs and settlement records to publish.
+- Build on the shipped manual monthly funding reports with an auditable revision trail and settlement reconciliation, only if required.
 
 ## Deliberately out of scope for v1
 

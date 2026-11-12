@@ -23,7 +23,11 @@ Original PHP application and design, inspired by the small-service bundle of [om
 | Field notes | Text notes about trails, local exploring, photography and maker projects |
 | /now garden | Discover listed members’ current projects and interests |
 | Guestbook | Signed-in messages, owner approval before public display |
-| Canadian directory | Source-backed submissions, connection types, search and admin review |
+| Canadian directory | Separately sourced ownership/hosting/manufacturing details, searchable alternative labels, correction queue and admin review |
+| My start page | Private grouped shortcuts, ordering, personal note, recent entries and projects |
+| Project workbench | Private/unlisted/public projects, build logs, milestones, CAD parts costs and discovery |
+| Webrings | Owner-approved memberships, previous/next/random navigation and plain HTML embeds |
+| Open funding | Admin-published monthly CAD costs and contribution totals; no donor tracking |
 | Portability | JSON account export, atomic entry import, bookmark export, RSS, bearer-token CRUD API |
 | Administration | CLI account provisioning/reset, directory review, reports, account suspension |
 | Support | Pay-what-you-can explanation plus an optional hosted contribution link; no payment data stored |
@@ -72,10 +76,16 @@ Passwords are entered through stdin without echo on a Unix terminal. Never put a
 
 ```bash
 php tests/domain.php
+php tests/community.php
 python3 tests/http_smoke.py http://127.0.0.1:8080
+python3 tests/http_community.py http://127.0.0.1:8080
 ```
 
 The domain suite uses isolated in-memory SQLite unless `SUPERAPP_TEST_DSN` is set. For disposable MariaDB, set `SUPERAPP_TEST_DSN`, `SUPERAPP_TEST_DB_USER`, and `SUPERAPP_TEST_DB_PASS`. Never point tests at production. The HTTP suite needs a disposable running instance with registration enabled; it creates two unique accounts and deletes them after a successful run.
+
+The community HTTP suite also needs the PHP CLI and the same `SUPERAPP_*` database configuration as the server. It creates temporary member/admin fixtures through the CLI, exercises moderation, then removes its records. Use a disposable database only. Set `SUPERAPP_TEST_PHP` if PHP is not on PATH.
+
+Read [the community tools guide](docs/COMMUNITY.md) for visibility, moderation, funding and limits.
 
 See [validation notes](docs/VALIDATION.md), [API documentation](docs/API.md), [security and operating boundaries](SECURITY.md), and [the roadmap](docs/ROADMAP.md).
 
@@ -84,7 +94,7 @@ See [validation notes](docs/VALIDATION.md), [API documentation](docs/API.md), [s
 ```text
 app/         configuration bootstrap, PDO queries, domain rules, views, optional demo seed
 public/      only web-served directory: front controller, CSS, JS and favicon
-database/    initial schema, used by an idempotent migration command
+database/    base and additive community schemas, used by the migration command
 bin/         account and maintenance CLI
 config/      example settings; local.php is ignored
 deploy/      Apache and PHP configuration examples
@@ -92,6 +102,6 @@ var/         private runtime data and sessions; ignored
 tests/       domain and HTTP integration checks
 ```
 
-The data model is deliberately compact: users, typed entries, directory submissions, guestbook messages, API tokens, reports and temporary rate-limit buckets. Shared entry rules keep ownership and privacy consistent across the eight writing tools. All content is plain text; arbitrary HTML, user CSS, uploads, URL fetching and server-side script execution are not accepted.
+The data model separates accounts and typed entries from private shortcuts, projects and updates, webrings, aggregate funding reports, directory evidence/corrections, guestbooks, API tokens and temporary rate-limit buckets. Shared entry rules keep ownership and privacy consistent across the eight writing tools. All content is plain text; arbitrary HTML, user CSS, uploads, URL fetching and server-side script execution are not accepted.
 
 This is a functional first release for a small pilot, not a claim of unlimited capacity or a completed public service. Details that remain outside v1 are explicit in the roadmap. Donations do not unlock features. Keep source available when redistributing under the GPL, credit contributors, and build something useful.

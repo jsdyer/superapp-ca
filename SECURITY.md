@@ -11,3 +11,10 @@ Limitations: no email verification, self-service reset, MFA, token scopes/expiry
 Install only `public/` as the web root. Keep configuration, runtime data and backups outside it. Deploy on HTTPS with `session_secure=true`. Do not enable demo mode or seed data in production. The optional contribution URL is trusted operator configuration; use a legitimate HTTPS provider and do not collect card data in this app.
 
 If reporting a vulnerability, contact the instance operator privately through their configured contact channel or use the repository’s private vulnerability reporting feature if enabled. Do not post credentials, real private records, or exploit details involving another member in a public issue. Include the affected version, route and a reproduction using test accounts.
+
+
+## Community tool boundaries
+
+Private start links are never fetched by the server. Projects apply one visibility to all logs, milestones and costs. Webring website ownership is not verified; navigation excludes pending, suspended and discovery-disabled members, and external hops show the destination first. Directory corrections remain private to their author in export and to administrators in review. All new browser mutations require the existing session, CSRF, demo protection and rate limits. Funding reports require an administrator and are manually entered aggregates; no payment credentials are handled.
+
+Public project and ring reports use the moderation desk. Administrators can remove rings and suspend owners; project deletion remains an owner operation. Funding/evidence edits do not have an immutable audit history. Resource quotas are for a small pilot and are not guaranteed under concurrent write races. The new tables cascade account-owned deletions, except instance-wide aggregate funding reports, which survive account deletion. Full restoration needs database backups; JSON import still restores entries only.

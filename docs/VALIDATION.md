@@ -11,3 +11,14 @@ Initial development: 2026-11-12. No production data or user credentials used.
 - Docker Compose/Apache configurations were supplied but not built or deployed in this environment. No DNS, live hosting, payment account or production database was changed.
 
 Repeat tests on the deployment target and inspect the CI run associated with the exact deployed commit. This record is not a penetration test, load test or certification.
+
+
+## Community tools update — 2026-11-12
+
+- Original SQLite domain suite: **52 checks passed**.
+- New community SQLite domain suite: **67 checks passed**, covering migration reruns, ownership, visibility, exact CAD cents, ring eligibility/navigation, evidence validation, funding permissions, exports and cascading deletion.
+- Original HTTP suite: **57 checks passed** against the PHP application.
+- New community HTTP suite: **76 checks passed**, including authenticated CRUD, cross-account denial, XSS escaping, project discovery/privacy, owner-approved ring navigation, directory corrections/reapproval, admin funding edits and exports.
+- Browser review: public project discovery and a populated project detail rendered correctly; webring discovery and the honest empty funding page rendered correctly. Authenticated flows were checked by HTTP integration tests, not an authenticated browser session. A full mobile-device and accessibility audit has not been performed.
+- GitHub Actions now runs both domain suites and both HTTP suites on SQLite and MariaDB. Consult the run attached to the deployed commit for its exact result.
+- No DNS, live hosting, payment provider or production database was changed. The new demo project is explicitly fictional; the funding page has no seeded financial totals.

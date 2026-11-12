@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__.'/../app/bootstrap.php';
+require __DIR__.'/../app/community-routes.php';
 security_headers();
 $path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';
 $method=$_SERVER['REQUEST_METHOD']??'GET';
@@ -44,6 +45,7 @@ try {
         }
         if($path==='/logout'){$_SESSION=[];session_regenerate_id(true);redirect('/');}
         $u=require_user();protect_demo($u);rate_limit('write:'.$u['id'],120,60);
+        community_post($path,$u);
         switch($path) {
             case '/profile/save': save_profile($u,$_POST);flash('Your corner has a fresh coat of paint.');redirect('/profile');
             case '/entry/save': $id=save_entry($u,$_POST,empty($_POST['id'])?null:(int)$_POST['id']);flash('Saved. Your words are right where you left them.');redirect('/compose?id='.$id);
@@ -75,7 +77,7 @@ try {
                 query('DELETE FROM users WHERE id=?',[$u['id']]);$_SESSION=[];session_regenerate_id(true);$_SESSION['csrf']=bin2hex(random_bytes(32));flash('Your account and its active records have been deleted.');redirect('/');
             case '/report':
                 rate_limit('reports:'.$u['id'],10,3600);$reported=input($_POST,'path',500);$reason=input($_POST,'reason',2000);
-                if(!str_starts_with($reported,'/@')||$reason==='')fail(422,'Provide the local entry path and a reason.');
+                if(!preg_match('~^/(?:@[a-z][a-z0-9_-]{2,23}(?:/e/[a-z0-9-]+)?|projects/[1-9][0-9]*|rings/[1-9][0-9]*)$~D',$reported)||$reason==='')fail(422,'Provide a local profile, entry, project or ring path and a reason.');
                 query('INSERT INTO reports (user_id,path,reason,created_at) VALUES (?,?,?,?)',[$u['id'],$reported,$reason,now()]);flash('Your report is with the instance moderator.');redirect('/commons');
             case '/admin/directory':
                 require_admin();$decision=input($_POST,'decision',20);if(!in_array($decision,['approved','rejected']))fail(422,'Invalid decision.');
@@ -87,6 +89,7 @@ try {
         }
     }
     if($method!=='GET')fail(405,'This method is not supported.');
+    community_get($path);
     $pageNumber=max(1,min(100000,(int)($_GET['page']??1)));$offset=($pageNumber-1)*25;
     $q=input($_GET,'q',150);$kind=input($_GET,'kind',20);if($kind!==''&&!isset(APPS[$kind]))fail(404,'App not found.');
     if($path==='/feed.xml'||preg_match('~^/@([a-z][a-z0-9_-]{2,23})/feed.xml$~D',$path,$m)) {
@@ -117,7 +120,7 @@ try {
         case '/garden':render('garden',['title'=>'The /now garden','people'=>rows("SELECT * FROM users WHERE listed=1 AND suspended=0 AND now_text<>'' ORDER BY updated_at DESC LIMIT 100")]);
         case '/directory':
             $claim=input($_GET,'claim',40);$where="d.status='approved' AND u.suspended=0";$params=[];
-            if($q!==''){$where.=' AND (d.name LIKE ? OR d.notes LIKE ? OR d.province LIKE ? OR d.category LIKE ?)';$params=array_fill(0,4,'%'.$q.'%');}
+            if($q!==''){$where.=' AND (d.name LIKE ? OR d.notes LIKE ? OR d.province LIKE ? OR d.category LIKE ? OR EXISTS (SELECT 1 FROM directory_details dx WHERE dx.directory_id=d.id AND dx.alternatives LIKE ?))';$params=array_fill(0,5,'%'.$q.'%');}
             if($claim!==''){$where.=' AND d.claim=?';$params[]=$claim;}
             render('directory',compact('q','claim')+['title'=>'Buy Canadian','listings'=>rows('SELECT d.* FROM directory d JOIN users u ON u.id=d.user_id WHERE '.$where.' ORDER BY d.name LIMIT 100',$params)]);
         case '/directory/submit':require_user();render('directory-submit',['title'=>'Share a Canadian discovery']);
@@ -136,7 +139,7 @@ try {
             $u=require_user();header('Content-Type: text/html; charset=utf-8');header('Content-Disposition: attachment; filename="superapp-bookmarks.html"');echo '<!DOCTYPE NETSCAPE-Bookmark-file-1><meta charset="utf-8"><title>Superapp bookmarks</title><h1>Superapp bookmarks</h1><dl><p>';
             foreach(rows("SELECT * FROM entries WHERE user_id=? AND kind='bookmark'",[$u['id']]) as $e)echo '<dt><a href="'.esc($e['target_url']).'">'.esc($e['title']).'</a><dd>'.esc($e['body']);echo '</dl>';exit;
         case '/admin':require_admin();render('admin',['title'=>'Moderation','submissions'=>rows('SELECT d.*,u.username FROM directory d JOIN users u ON u.id=d.user_id ORDER BY d.id DESC LIMIT 100'),'reports'=>rows("SELECT * FROM reports WHERE status='open' ORDER BY id DESC LIMIT 100"),'members'=>rows('SELECT id,username,role,suspended FROM users ORDER BY id DESC LIMIT 100')]);
-        case '/robots.txt':header('Content-Type: text/plain');echo "User-agent: *\nDisallow: /workspace\nDisallow: /settings\nDisallow: /api/\nDisallow: /export\nDisallow: /compose\nDisallow: /admin\n";exit;
+        case '/robots.txt':header('Content-Type: text/plain');echo "User-agent: *\nDisallow: /workspace\nDisallow: /start\nDisallow: /workbench\nDisallow: /settings\nDisallow: /api/\nDisallow: /export\nDisallow: /compose\nDisallow: /admin\n";exit;
         default:fail(404,'This little corner hasn’t been built yet.');
     }
 } catch(HttpError $e) {

@@ -13,6 +13,7 @@ ini_set('display_errors','0');
 ini_set('log_errors','1');
 require __DIR__ . '/database.php';
 require __DIR__ . '/domain.php';
+require __DIR__ . '/community.php';
 require __DIR__ . '/view.php';
 
 function cfg(string $key): mixed { global $config; return $config[$key] ?? null; }

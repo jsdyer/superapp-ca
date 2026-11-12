@@ -6,3 +6,6 @@ node_modules/
 *.log
 /package.json
 /.preview.sh
+
+__pycache__/
+*.pyc
